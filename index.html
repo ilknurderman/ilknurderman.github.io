@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schrodingernur — Game Developer</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+/* =============================================
+   COLORS — change these to customize the theme
+   ============================================= */
+:root {
+  --bg: #040d0d;
+  --bg2: #071414;
+  --bg3: #0a1f1f;
+  --accent: #00e5cc;       /* main turquoise — change this for a different vibe */
+  --accent2: #00ffaa;      /* lighter green turquoise */
+  --accent3: #ff7eb3;      /* pink pop accent */
+  --text: #e0faf6;
+  --muted: #5a9e96;
+  --border: rgba(0,229,204,0.2);
+  --pixel-size: 3px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; image-rendering: pixelated; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* =============================================
+   PIXEL CURSOR
+   ============================================= */
+.cursor {
+  width: 12px; height: 12px;
+  background: var(--accent);
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  image-rendering: pixelated;
+  clip-path: polygon(0 0, 60% 0, 60% 40%, 100% 40%, 100% 60%, 60% 60%, 60% 100%, 40% 100%, 40% 60%, 0 60%);
+}
+
+/* =============================================
+   PIXEL GRID BACKGROUND
+   ============================================= */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,204,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,204,0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+canvas#stars {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.content { position: relative; z-index: 1; }
+
+/* =============================================
+   PIXEL BORDER UTILITY
+   ============================================= */
+.pixel-border {
+  border: var(--pixel-size) solid var(--accent);
+  box-shadow:
+    calc(var(--pixel-size) * -1) 0 0 var(--bg),
+    calc(var(--pixel-size) * 1) 0 0 var(--bg),
+    0 calc(var(--pixel-size) * -1) 0 var(--bg),
+    0 calc(var(--pixel-size) * 1) 0 var(--bg),
+    0 0 0 calc(var(--pixel-size) * 2) var(--accent);
+}
+
+/* =============================================
+   NAVIGATION
+   ============================================= */
+nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 3rem;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 3px solid var(--border);
+}
+
+/* CHANGE YOUR NAME HERE */
+.logo {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.7rem;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  text-shadow: 3px 3px 0 rgba(0,229,204,0.3);
+}
+
+.nav-links { display: flex; gap: 2rem; }
+.nav-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.1s;
+  letter-spacing: 0.05em;
+}
+.nav-links a:hover { color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+
+/* =============================================
+   HERO SECTION
+   ============================================= */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 8rem 3rem 4rem;
+  position: relative;
+}
+
+.hero-inner { max-width: 800px; }
+
+.blink {
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+.hero-tag {
+  font-size: 0.85rem;
+  color: var(--accent2);
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeUp 0.6s ease both;
+}
+
+/* CHANGE YOUR TITLE HERE */
+h1 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(1.2rem, 3vw, 2rem);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  animation: fadeUp 0.6s 0.1s ease both;
+  text-shadow: 4px 4px 0 rgba(0,229,204,0.25);
+}
+
+h1 .line2 { color: var(--accent); }
+h1 .line3 { color: var(--accent3); font-size: 0.8em; }
+
+/* CHANGE YOUR DESCRIPTION HERE */
+.hero-sub {
+  font-size: 1.1rem;
+  color: var(--muted);
+  max-width: 560px;
+  margin-bottom: 2.5rem;
+  line-height: 1.8;
+  animation: fadeUp 0.6s 0.2s ease both;
+}
+.hero-sub span { color: var(--accent); }
+
+.hero-cta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =============================================
+   PIXEL BUTTONS
+   ============================================= */
+.btn {
+  display: inline-block;
+  padding: 0.7rem 1.5rem;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.6rem;
+  cursor: none;
+  text-decoration: none;
+  transition: transform 0.1s;
+  letter-spacing: 0.05em;
+  position: relative;
+}
+
+.btn:active { transform: translate(3px, 3px); }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+  box-shadow: 4px 4px 0 #007a6e, 8px 8px 0 rgba(0,122,110,0.3);
+}
+.btn-primary:hover { box-shadow: 2px 2px 0 #007a6e; transform: translate(2px, 2px); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--accent);
+  box-shadow: 4px 4px 0 var(--accent), inset 0 0 0 3px var(--accent);
+}
+.btn-ghost:hover { box-shadow: 2px 2px 0 var(--accent), inset 0 0 0 3px var(--accent); transform: translate(2px, 2px); }
+
+/* =============================================
+   PIXEL CAT (pure CSS!)
+   ============================================= */
+.pixel-cat {
+  position: absolute;
+  right: 5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: float 3s ease-in-out infinite, fadeUp 1s 0.4s ease both;
+}
+
+.pixel-cat svg { width: 160px; height: 160px; image-rendering: pixelated; filter: drop-shadow(0 0 20px rgba(0,229,204,0.4)); }
+
+@keyframes float {
+  0%, 100% { transform: translateY(-50%); }
+  50% { transform: translateY(calc(-50% - 16px)); }
+}
+
+/* =============================================
+   SECTIONS
+   ============================================= */
+section { padding: 5rem 3rem; }
+
+.section-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  margin-bottom: 1.5rem;
+}
+
+h2 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(0.9rem, 2.5vw, 1.3rem);
+  margin-bottom: 2.5rem;
+  line-height: 1.8;
+  text-shadow: 3px 3px 0 rgba(0,229,204,0.2);
+}
+
+/* =============================================
+   ABOUT SECTION
+   ============================================= */
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+/* CHANGE YOUR ABOUT TEXT HERE */
+.about-text p {
+  color: var(--muted);
+  line-height: 1.9;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+.about-text p span { color: var(--accent2); }
+
+.about-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+.stat-card {
+  background: var(--bg2);
+  border: 3px solid var(--border);
+  padding: 1.2rem;
+  position: relative;
+  transition: border-color 0.2s;
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  bottom: -6px; right: -6px;
+  width: 100%; height: 100%;
+  border: 3px solid rgba(0,229,204,0.1);
+  z-index: -1;
+}
+.stat-card:hover { border-color: var(--accent); }
+.stat-card .num {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 1.5rem;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  text-shadow: 3px 3px 0 rgba(0,229,204,0.3);
+}
+.stat-card .label { font-size: 0.85rem; color: var(--muted); }
+
+/* =============================================
+   PROJECTS SECTION
+   CHANGE PROJECT DETAILS BELOW
+   ============================================= */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.project-card {
+  background: var(--bg2);
+  border: 3px solid var(--border);
+  padding: 1.8rem;
+  position: relative;
+  transition: all 0.15s;
+}
+
+.project-card::before {
+  content: attr(data-num);
+  position: absolute;
+  top: -14px; left: 16px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.55rem;
+  background: var(--accent);
+  color: var(--bg);
+  padding: 4px 10px;
+}
+
+.project-card:hover { border-color: var(--accent); transform: translate(-3px, -3px); box-shadow: 6px 6px 0 var(--accent); }
+
+.project-card h3 { font-family: 'Press Start 2P', monospace; font-size: 0.65rem; line-height: 1.8; margin-bottom: 0.8rem; color: var(--accent2); }
+.project-card p { color: var(--muted); font-size: 0.95rem; line-height: 1.7; margin-bottom: 1rem; }
+
+.wip-badge {
+  display: inline-block;
+  background: rgba(255,126,179,0.15);
+  border: 2px solid var(--accent3);
+  color: var(--accent3);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.45rem;
+  padding: 3px 8px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.tags { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.tag {
+  background: rgba(0,229,204,0.08);
+  border: 2px solid rgba(0,229,204,0.2);
+  color: var(--accent);
+  font-size: 0.8rem;
+  padding: 2px 10px;
+  font-family: 'VT323', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* =============================================
+   SKILLS SECTION
+   ADD/REMOVE SKILLS BELOW
+   ============================================= */
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.8rem;
+}
+
+.skill-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+  background: var(--bg2);
+  border: 3px solid var(--border);
+  transition: all 0.15s;
+}
+.skill-item:hover { border-color: var(--accent); transform: translateX(4px); }
+.skill-icon { font-size: 1.4rem; image-rendering: pixelated; }
+.skill-name { font-size: 0.95rem; font-weight: 500; }
+.skill-level { font-size: 0.8rem; color: var(--muted); }
+
+/* =============================================
+   CONTACT SECTION
+   CHANGE YOUR LINKS BELOW
+   ============================================= */
+.contact-inner {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.contact-inner p { color: var(--muted); margin-bottom: 2rem; font-size: 1.05rem; line-height: 1.8; }
+.contact-links { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+
+footer {
+  text-align: center;
+  padding: 2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  border-top: 3px solid var(--border);
+}
+footer span { color: var(--accent3); }
+
+@media (max-width: 768px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-links { display: none; }
+  .hero { padding: 6rem 1.5rem 3rem; }
+  .pixel-cat { display: none; }
+  section { padding: 3rem 1.5rem; }
+  .about-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<canvas id="stars"></canvas>
+
+<div class="content">
+
+<!-- NAVIGATION — change your name and links here -->
+<nav>
+  <div class="logo">Schrodingernur</div>
+  <div class="nav-links">
+    <a href="#about">about</a>
+    <a href="#projects">projects</a>
+    <a href="#skills">skills</a>
+    <a href="#contact">contact</a>
+  </div>
+</nav>
+
+<!-- HERO — change your headline and description here -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-tag">▶ available for opportunities <span class="blink">_</span></div>
+    <h1>
+      Game Dev.<br>
+      <span class="line2">Physicist.</span><br>
+      <span class="line3">Storyteller.</span>
+    </h1>
+    <p class="hero-sub">
+      Building worlds where <span>science meets narrative</span>. Physics student turned narrative designer — crafting games that make you feel something real.
+    </p>
+    <div class="hero-cta">
+      <a href="#projects" class="btn btn-primary">[ see my work ]</a>
+      <a href="#contact" class="btn btn-ghost">[ say hello ]</a>
+    </div>
+  </div>
+
+  <!-- pixel cat -->
+  <div class="pixel-cat">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="8" width="24" height="4" fill="#00e5cc"/>
+      <rect x="16" y="12" width="32" height="4" fill="#00e5cc"/>
+      <rect x="12" y="16" width="40" height="4" fill="#00e5cc"/>
+      <rect x="12" y="20" width="40" height="12" fill="#00e5cc"/>
+      <rect x="8" y="16" width="4" height="8" fill="#00e5cc"/>
+      <rect x="52" y="16" width="4" height="8" fill="#00e5cc"/>
+      <rect x="16" y="24" width="6" height="4" fill="#040d0d"/>
+      <rect x="42" y="24" width="6" height="4" fill="#040d0d"/>
+      <rect x="28" y="28" width="8" height="3" fill="#ff7eb3"/>
+      <rect x="12" y="32" width="40" height="8" fill="#00e5cc"/>
+      <rect x="8" y="36" width="4" height="8" fill="#00e5cc"/>
+      <rect x="52" y="36" width="4" height="8" fill="#00e5cc"/>
+      <rect x="16" y="40" width="12" height="4" fill="#007a6e"/>
+      <rect x="36" y="40" width="12" height="4" fill="#007a6e"/>
+      <rect x="16" y="44" width="8" height="8" fill="#00e5cc"/>
+      <rect x="40" y="44" width="8" height="8" fill="#00e5cc"/>
+      <rect x="16" y="52" width="8" height="4" fill="#007a6e"/>
+      <rect x="40" y="52" width="8" height="4" fill="#007a6e"/>
+      <rect x="26" y="32" width="4" height="2" fill="#00ffaa"/>
+      <rect x="34" y="32" width="4" height="2" fill="#00ffaa"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ABOUT — change your personal text here -->
+<section id="about">
+  <div class="section-label">// about.exe</div>
+  <div class="about-grid">
+    <div class="about-text">
+      <h2>A physicist who asks why about everything</h2>
+      <p>I'm <span>Schrodingernur</span> — physics student in my final semester with a deep love for storytelling, game design, and understanding how things work at a fundamental level.</p>
+      <p>I got into game dev through <span>narrative design</span>, where I discovered building worlds requires the same curiosity as studying the universe. I've been writing a sci-fi story since I was a teenager — and now I'm turning it into a game.</p>
+      <p>When I'm not studying quantum mechanics or pushing commits, I'm probably reading, making things in Blender, or watching my budgie <span>Fıstık</span> judge my code. 🐦</p>
+    </div>
+    <div class="about-stats">
+      <!-- CHANGE THESE STATS to match your experience -->
+      <div class="stat-card">
+        <div class="num">2+</div>
+        <div class="label">yrs storytelling</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">BSc</div>
+        <div class="label">physics degree</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">3D</div>
+        <div class="label">Blender artist</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">∞</div>
+        <div class="label">questions asked</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS — add/remove/edit project cards here -->
+<section id="projects">
+  <div class="section-label">// projects.dir</div>
+  <h2>Things I'm building</h2>
+  <div class="projects-grid">
+
+    <div class="project-card" data-num="01">
+      <h3>The First Blue <span class="wip-badge">WIP</span></h3>
+      <p>A story-driven game about the very first human born with blue eyes — a genetic mutation that changed history. Play as male or female for two entirely different survival stories set in prehistoric times.</p>
+      <div class="tags">
+        <span class="tag">Unity</span>
+        <span class="tag">Narrative</span>
+        <span class="tag">2D</span>
+        <span class="tag">Blender</span>
+      </div>
+    </div>
+
+    <div class="project-card" data-num="02">
+      <h3>Untitled Sci-Fi Epic <span class="wip-badge">someday</span></h3>
+      <p>Open world game set thousands of years after humans colonized another planet and created mutants through genetic experimentation. Three characters, one event, infinite perspectives.</p>
+      <div class="tags">
+        <span class="tag">Open World</span>
+        <span class="tag">Sci-Fi</span>
+        <span class="tag">Multi-POV</span>
+      </div>
+    </div>
+
+    <div class="project-card" data-num="03">
+      <h3>Variational Quantum Algorithms</h3>
+      <p>Bachelor's thesis exploring variational quantum algorithms — where physics meets cutting-edge computation. Built in Python, bridging quantum theory with practical implementation.</p>
+      <div class="tags">
+        <span class="tag">Python</span>
+        <span class="tag">Quantum</span>
+        <span class="tag">Research</span>
+      </div>
+    </div>
+
+    <div class="project-card" data-num="04">
+      <h3>Narrative Design Work</h3>
+      <p>Professional narrative design experience in the gaming industry — crafting stories, dialogue systems, and player experiences that stay with you long after you put the controller down.</p>
+      <div class="tags">
+        <span class="tag">Narrative</span>
+        <span class="tag">Game Design</span>
+        <span class="tag">Writing</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- SKILLS — add/remove skills here -->
+<section id="skills">
+  <div class="section-label">// skills.log</div>
+  <h2>What I work with</h2>
+  <div class="skills-grid">
+    <div class="skill-item"><span class="skill-icon">🐍</span><div><div class="skill-name">Python</div><div class="skill-level">proficient</div></div></div>
+    <div class="skill-item"><span class="skill-icon">🎮</span><div><div class="skill-name">Unity</div><div class="skill-level">learning</div></div></div>
+    <div class="skill-item"><span class="skill-icon">⚙️</span><div><div class="skill-name">C Language</div><div class="skill-level">learning</div></div></div>
+    <div class="skill-item"><span class="skill-icon">🧊</span><div><div class="skill-name">Blender</div><div class="skill-level">intermediate</div></div></div>
+    <div class="skill-item"><span class="skill-icon">📖</span><div><div class="skill-name">Narrative Design</div><div class="skill-level">professional</div></div></div>
+    <div class="skill-item"><span class="skill-icon">🔬</span><div><div class="skill-name">Physics</div><div class="skill-level">BSc level</div></div></div>
+    <div class="skill-item"><span class="skill-icon">🤖</span><div><div class="skill-name">AI & ML</div><div class="skill-level">intermediate</div></div></div>
+    <div class="skill-item"><span class="skill-icon">🐙</span><div><div class="skill-name">Git & GitHub</div><div class="skill-level">learning</div></div></div>
+  </div>
+</section>
+
+<!-- CONTACT — change your email and github link here -->
+<section id="contact">
+  <div class="contact-inner">
+    <div class="section-label">// contact.init</div>
+    <h2>Let's make something together</h2>
+    <p>Finishing my physics degree and open to game dev opportunities, collabs, and interesting conversations. If you like what you see — say hello.</p>
+    <div class="contact-links">
+      <!-- CHANGE href to your real GitHub URL -->
+      <a href="https://github.com/YOUR_USERNAME" class="btn btn-ghost">[ GitHub ]</a>
+      <!-- CHANGE href to your real email -->
+      <a href="mailto:YOUR_EMAIL" class="btn btn-primary">[ email me ]</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <!-- CHANGE footer text if you want -->
+  made with <span>♥</span> and too much curiosity — schrodingernur
+</footer>
+
+</div>
+
+<script>
+/* cursor */
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX - 6 + 'px';
+  cursor.style.top = e.clientY - 6 + 'px';
+});
+
+/* pixel stars */
+const canvas = document.getElementById('stars');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+for (let i = 0; i < 120; i++) {
+  stars.push({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    size: Math.random() < 0.7 ? 2 : 4,
+    opacity: Math.random() * 0.5 + 0.1,
+    blink: Math.random() * 0.02 + 0.005
+  });
+}
+
+function drawStars() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  stars.forEach(s => {
+    s.opacity += (Math.random() - 0.5) * s.blink;
+    s.opacity = Math.max(0.05, Math.min(0.6, s.opacity));
+    ctx.fillStyle = `rgba(0,229,204,${s.opacity})`;
+    ctx.fillRect(
+      Math.round(s.x / s.size) * s.size,
+      Math.round(s.y / s.size) * s.size,
+      s.size, s.size
+    );
+  });
+  requestAnimationFrame(drawStars);
+}
+drawStars();
+</script>
+</body>
+</html>
